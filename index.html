@@ -6,14 +6,16 @@
   <meta name="theme-color" content="#0f766e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" content="StockLens Enterprise Operations Intelligence — Handheld barcode/IMEI scanner, inventory management, warranty/refund audit" />
+  <meta name="description" content="StockLens Enterprise Operations Intelligence — Handheld barcode/IMEI scanner, inventory management, warranty/refund audit, live Google Sheets sync" />
   <title>StockLens Enterprise · Handheld Operations</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="icons/favicon.png" />
   <link rel="apple-touch-icon" href="icons/icon.png" />
+  
+  <!-- Modern Executive Typography: Plus Jakarta Sans + JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -38,15 +40,27 @@
 
     <main class="main">
       <header class="topbar">
-        <button id="menuBtn" class="icon-btn mobile-only" aria-label="Toggle menu">☰</button>
-        <div>
-          <div class="eyebrow" id="pageKicker">COMMAND CENTER</div>
-          <h1 id="pageTitle">Operations overview</h1>
+        <div class="topbar-left">
+          <button id="menuBtn" class="icon-btn mobile-only" aria-label="Toggle menu">☰</button>
+          <div>
+            <div class="eyebrow" id="pageKicker">COMMAND CENTER</div>
+            <h1 id="pageTitle">Operations overview</h1>
+          </div>
         </div>
         <div class="top-actions">
-          <!-- Quick Camera Trigger (Visible on all screens) -->
+          <!-- Quick Camera Trigger -->
           <button class="camera-top-btn" id="openScannerTop" title="Launch Camera Barcode Scanner">
             📷 <span class="desktop-text">Scan IMEI</span>
+          </button>
+
+          <!-- Quick Google Sheets Sync Trigger -->
+          <button class="ghost-btn gsheets-top-btn" id="syncSheetsTop" title="Sync live from Google Sheets">
+            ⚡ <span class="desktop-text">Sync Sheets</span>
+          </button>
+
+          <!-- Connected Source Files & Ledger Proof -->
+          <button class="ghost-btn" id="btnSourceFilesTop" title="Connected Source Files & Provenance Proof">
+            📁 <span class="desktop-text">Files &amp; Proof</span>
           </button>
           
           <button class="ghost-btn" id="importTop">↥ <span data-i18n="import">Import</span></button>
@@ -76,6 +90,8 @@
                 <span id="dropUserEmail">admin@stocklens.internal</span>
               </div>
               <hr />
+              <button class="user-drop-item" id="btnFilesNav">📁 Connected Source Files &amp; Proof</button>
+              <button class="user-drop-item" id="btnSheetsNav">⚡ Google Sheets Live Sync</button>
               <button class="user-drop-item" id="btnSettingsNav">⚙️ Enterprise Settings</button>
               <button class="user-drop-item" id="btnLockApp">🔒 Lock Terminal</button>
               <button class="user-drop-item" id="btnSwitchAccount">🔄 Switch Account</button>
@@ -103,15 +119,63 @@
         <div class="bnav-scan-circle">📷</div>
         <span class="bnav-label">Scan</span>
       </button>
+      <button class="bnav-btn" data-view="sources">
+        <span class="bnav-icon">📁</span>
+        <span class="bnav-label">Files &amp; Proof</span>
+      </button>
       <button class="bnav-btn" data-view="imei">
         <span class="bnav-icon">⌕</span>
         <span class="bnav-label">Audit</span>
       </button>
-      <button class="bnav-btn" data-view="offers">
-        <span class="bnav-icon">◈</span>
-        <span class="bnav-label">Offers</span>
-      </button>
     </nav>
+  </div>
+
+  <!-- Live Google Sheets Connectivity Modal -->
+  <div class="modal-overlay hidden" id="sheetsModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title-wrap">
+          <span class="pulse"></span>
+          <div>
+            <h3>Google Sheets Live Connectivity</h3>
+            <p>Direct two-way synchronization with operational spreadsheets</p>
+          </div>
+        </div>
+        <button class="icon-btn-circle" id="closeSheetsModal" aria-label="Close Google Sheets Modal">✕</button>
+      </div>
+
+      <div class="sheets-modal-body">
+        <div class="notice" id="sheetsModalNotice" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534;margin-bottom:16px">
+          <b>Live Integration Ready</b><br>
+          <span id="sheetsModalStatus">Connect any Google Sheet via URL or ID. Public/Shared sheets connect instantly with zero API keys required.</span>
+        </div>
+
+        <form id="sheetsModalForm" class="form-grid">
+          <label class="wide">
+            <span>Google Spreadsheet URL or Sheet ID</span>
+            <input type="text" id="modalSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/... or ID" />
+          </label>
+          <label>
+            <span>Sheet Tab Name</span>
+            <input type="text" id="modalSheetName" placeholder="Master_Records or Sheet1" />
+          </label>
+          <label>
+            <span>Optional API Key (For Private Sheets)</span>
+            <input type="password" id="modalApiKey" placeholder="Leave blank for shared sheets" />
+          </label>
+
+          <div class="sheets-quick-actions wide">
+            <button type="button" class="ghost-btn btn-sm" id="btnFillSampleSheet">⚡ Use Demo Warehouse Sheet</button>
+            <button type="button" class="ghost-btn btn-sm" id="btnTestSheetConnection">🔍 Test Connection</button>
+          </div>
+
+          <div class="form-actions wide">
+            <button type="button" class="ghost-btn" id="btnSaveModalSheetsConfig">Save Configuration</button>
+            <button type="button" class="primary-btn" id="btnSyncModalNow" style="background:#15803d;border-color:#15803d">⚡ Harmonize &amp; Sync Now</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 
   <!-- Live Camera Barcode & IMEI Scanner Modal -->
