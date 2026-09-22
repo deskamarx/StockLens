@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "stocklens",
+			"path": "../../../Stock_Lens/stocklens"
+		}
+	],
+	"settings": {}
+}
